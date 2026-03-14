@@ -64,46 +64,72 @@ const TOTAL_TOPICS = ALL_TOPICS.length;
 
 // ==================== BOOT SEQUENCE ====================
 async function boot() {
+  const progress = getProgress();
+
+  // Skip boot on repeat visits
+  if (progress.bootSeen) {
+    skipBoot();
+    return;
+  }
+
   const bootLines = [
     '[*] Initializing eJPTv2 Training Environment...',
-    '[+] Loading exploit database... 2376 modules',
-    '[+] Loading auxiliary modules... 1232 modules',
-    '[+] Loading payloads... 1388 payloads',
-    '[*] Establishing secure connection...',
-    '[+] Verifying operator credentials...',
-    '[+] Access granted. Welcome, operator.',
-    '[*] System ready.',
+    '[+] Loading exploit database... 2,376 modules',
+    '[+] Loading auxiliary modules... 1,232 modules',
+    '[+] Loading payloads... 1,388 payloads',
+    '[*] Establishing encrypted tunnel...',
+    '[+] Credentials verified. Access granted.',
+    '[*] System ready. Good luck, operator.',
   ];
 
   const bootEl = document.getElementById('boot-lines');
+  const bootScreen = document.getElementById('boot-screen');
+  let skipped = false;
+
+  // Click to skip
+  const skipHandler = () => {
+    if (skipped) return;
+    skipped = true;
+    progress.bootSeen = true;
+    saveProgress(progress);
+    bootScreen.classList.add('fade-out');
+    setTimeout(() => {
+      bootScreen.remove();
+      document.getElementById('app').classList.remove('hidden');
+      init();
+    }, 300);
+  };
+
+  bootScreen.addEventListener('click', skipHandler);
 
   for (let i = 0; i < bootLines.length; i++) {
-    await sleep(150 + Math.random() * 200);
+    if (skipped) return;
+    await sleep(120 + Math.random() * 150);
     const line = document.createElement('div');
     line.className = 'boot-line';
     line.style.animationDelay = '0s';
 
     if (bootLines[i].startsWith('[+]')) {
-      line.innerHTML = `<span style="color: #00ff88">${bootLines[i]}</span>`;
-    } else if (bootLines[i].startsWith('[*]')) {
-      line.innerHTML = `<span style="color: #00d4ff">${bootLines[i]}</span>`;
+      line.innerHTML = `<span style="color: var(--accent-green)">${bootLines[i]}</span>`;
     } else {
-      line.textContent = bootLines[i];
+      line.innerHTML = `<span style="color: var(--accent-cyan)">${bootLines[i]}</span>`;
     }
 
     bootEl.appendChild(line);
   }
 
-  await sleep(600);
+  if (skipped) return;
+  await sleep(400);
 
+  progress.bootSeen = true;
+  saveProgress(progress);
+  skipHandler();
+}
+
+function skipBoot() {
   const bootScreen = document.getElementById('boot-screen');
-  bootScreen.classList.add('fade-out');
-
-  await sleep(500);
-  bootScreen.remove();
-
+  if (bootScreen) bootScreen.remove();
   document.getElementById('app').classList.remove('hidden');
-
   init();
 }
 
@@ -113,7 +139,6 @@ function sleep(ms) {
 
 // ==================== INITIALIZATION ====================
 function init() {
-  // Initialize audio on first user interaction (browser policy)
   initAudio();
   const progress = getProgress();
   setMuted(progress.soundOn === false);
@@ -129,6 +154,29 @@ function init() {
     playNav();
     handleRoute();
   });
+
+  // Scroll-triggered animations
+  setupScrollAnimations();
+}
+
+function setupScrollAnimations() {
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+      }
+    });
+  }, { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
+
+  // Observe elements after content loads
+  window._scrollObserver = observer;
+}
+
+function observeNewContent() {
+  if (!window._scrollObserver) return;
+  document.querySelectorAll('.fade-in-section:not(.visible)').forEach(el => {
+    window._scrollObserver.observe(el);
+  });
 }
 
 // ==================== MISSION MAP ====================
@@ -139,6 +187,10 @@ function renderMap() {
   let html = '';
 
   COURSE.forEach((section) => {
+    const sectionDone = section.topics.filter(t => progress.completed.includes(t.id)).length;
+    const sectionTotal = section.topics.length;
+    const sectionPct = Math.round((sectionDone / sectionTotal) * 100);
+
     html += `<div class="map-section">`;
     html += `<div class="map-section-title">${section.title}</div>`;
 
@@ -155,7 +207,7 @@ function renderMap() {
         statusText = quizScore !== undefined ? `${quizScore}%` : '✓';
       } else if (isCurrent) {
         statusClass = 'active';
-        statusText = '●';
+        statusText = '▸';
       }
 
       html += `
@@ -175,7 +227,7 @@ function renderMap() {
 // ==================== ROUTING ====================
 function handleRoute() {
   const hash = window.location.hash.replace('#/', '') || '';
-  renderMap(); // Update active states
+  renderMap();
 
   if (!hash) {
     renderWelcome();
@@ -183,7 +235,6 @@ function handleRoute() {
     return;
   }
 
-  // Handle game routes
   if (hash.startsWith('game-')) {
     loadGame(hash);
     updateNavButtons(null);
@@ -200,7 +251,6 @@ function handleRoute() {
   loadTopic(topic);
   updateNavButtons(topicIndex);
 
-  // Save current position
   const progress = getProgress();
   progress.currentTopic = topic.id;
   saveProgress(progress);
@@ -236,26 +286,28 @@ function renderWelcome() {
   const completedCount = progress.completed.length;
   const pct = Math.round((completedCount / TOTAL_TOPICS) * 100);
 
-  let startLabel = 'Start Training';
+  let startLabel = 'Begin Mission';
   let startTarget = ALL_TOPICS[0].id;
+  let tagline = '17 targets. Zero credentials. Time to work.';
 
-  if (progress.currentTopic) {
-    startLabel = 'Continue Training';
+  if (completedCount > 0 && progress.currentTopic) {
+    startLabel = 'Continue Mission';
     startTarget = progress.currentTopic;
+    tagline = `${TOTAL_TOPICS - completedCount} targets remaining. Keep moving.`;
+  }
+
+  if (pct === 100) {
+    tagline = 'All targets compromised. You\'re ready for the exam.';
   }
 
   viewport.innerHTML = `
     <div class="welcome">
-      <h1>eJPTv2 Training</h1>
-      <p class="subtitle">From zero to Junior Penetration Tester</p>
+      <h1>eJPTv2 <span>Training</span></h1>
+      <p class="subtitle">${tagline}</p>
 
       <div class="welcome-stats">
         <div class="welcome-stat">
-          <div class="stat-num">${TOTAL_TOPICS}</div>
-          <div class="stat-label">Lessons</div>
-        </div>
-        <div class="welcome-stat">
-          <div class="stat-num">${completedCount}</div>
+          <div class="stat-num">${completedCount}/${TOTAL_TOPICS}</div>
           <div class="stat-label">Completed</div>
         </div>
         <div class="welcome-stat">
@@ -264,7 +316,11 @@ function renderWelcome() {
         </div>
         <div class="welcome-stat">
           <div class="stat-num">${progress.xp}</div>
-          <div class="stat-label">Total XP</div>
+          <div class="stat-label">XP</div>
+        </div>
+        <div class="welcome-stat">
+          <div class="stat-num">${progress.streak.current}d</div>
+          <div class="stat-label">Streak</div>
         </div>
       </div>
 
@@ -273,14 +329,19 @@ function renderWelcome() {
       ${renderGamesSection()}
 
       <div style="margin-top: 48px; text-align: left; max-width: 600px; margin-left: auto; margin-right: auto;">
-        <h3 style="color: var(--accent-cyan); margin-bottom: 16px;">Course Sections</h3>
+        <h3 style="color: var(--accent-purple); margin-bottom: 16px; font-size: 14px; text-transform: uppercase; letter-spacing: 2px; font-weight: 700;">Course Sections</h3>
         ${COURSE.map(section => {
           const sectionTopics = section.topics;
           const done = sectionTopics.filter(t => progress.completed.includes(t.id)).length;
+          const sectionPct = Math.round((done / sectionTopics.length) * 100);
+          const isComplete = done === sectionTopics.length;
           return `
-            <div style="display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border-subtle);">
-              <span>${section.title}</span>
-              <span style="color: ${done === sectionTopics.length ? 'var(--accent-green)' : 'var(--text-dim)'}; font-family: var(--font-mono);">${done}/${sectionTopics.length}</span>
+            <div class="section-progress-item">
+              <span class="section-progress-name">${section.title}</span>
+              <div class="section-progress-bar">
+                <div class="section-progress-fill ${isComplete ? 'complete' : ''}" style="width: ${sectionPct}%"></div>
+              </div>
+              <span class="section-progress-count" style="color: ${isComplete ? 'var(--accent-green)' : 'var(--text-dim)'}">${done}/${sectionTopics.length}</span>
             </div>
           `;
         }).join('')}
@@ -313,15 +374,13 @@ async function loadTopic(topic) {
 
   viewport.innerHTML = `
     <div style="text-align: center; padding: 80px 0; color: var(--text-dim);">
-      <div style="font-size: 32px; margin-bottom: 16px;">Loading...</div>
-      <div style="font-family: var(--font-mono); color: var(--accent-green);">${topic.title}</div>
+      <div style="font-family: var(--font-mono); font-size: 14px; color: var(--accent-cyan); margin-bottom: 8px;">Loading module</div>
+      <div style="font-size: 24px; font-weight: 700; color: var(--text-bright);">${topic.title}</div>
     </div>
   `;
 
   try {
     const module = await import(`./content/${topic.file}.js`);
-
-    const section = COURSE.find(s => s.topics.includes(topic));
     const html = module.render();
 
     viewport.innerHTML = html;
@@ -345,7 +404,7 @@ async function loadTopic(topic) {
       if (isCompleted(topic.id)) {
         completeBtn.textContent = 'Completed ✓';
         completeBtn.disabled = true;
-        completeBtn.style.opacity = '0.5';
+        completeBtn.style.opacity = '0.4';
       }
       completeBtn.addEventListener('click', () => {
         completeTopic(topic.id, undefined, TOTAL_TOPICS);
@@ -354,7 +413,7 @@ async function loadTopic(topic) {
         playComplete();
         completeBtn.textContent = 'Completed ✓';
         completeBtn.disabled = true;
-        completeBtn.style.opacity = '0.5';
+        completeBtn.style.opacity = '0.4';
       });
     }
 
@@ -378,13 +437,16 @@ async function loadTopic(topic) {
       });
     });
 
+    // Setup scroll animations for new content
+    observeNewContent();
+
   } catch (err) {
     viewport.innerHTML = `
       <div style="text-align: center; padding: 80px 0;">
         <div style="font-size: 48px; margin-bottom: 16px;">🚧</div>
         <h2 style="color: var(--text-bright); margin-bottom: 8px;">${topic.title}</h2>
         <p style="color: var(--text-dim);">This lesson is coming soon.</p>
-        <p style="color: var(--text-dim); font-size: 14px; margin-top: 16px; font-family: var(--font-mono);">Module: ${topic.file}</p>
+        <p style="color: var(--text-dim); font-size: 13px; margin-top: 16px; font-family: var(--font-mono);">Module: ${topic.file}</p>
       </div>
     `;
   }
