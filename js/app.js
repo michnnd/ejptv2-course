@@ -5,6 +5,7 @@
 import { getProgress, saveProgress, renderHUD, updateStreak, completeTopic, isCompleted, getQuizScore } from './engine/progress.js';
 import { initTerminal, toggleTerminal } from './engine/terminal.js';
 import { startQuiz } from './engine/quiz.js';
+import { initAudio, setMuted, playClick, playNav, playComplete } from './engine/sounds.js';
 
 // ==================== COURSE STRUCTURE ====================
 const COURSE = [
@@ -111,6 +112,11 @@ function sleep(ms) {
 
 // ==================== INITIALIZATION ====================
 function init() {
+  // Initialize audio on first user interaction (browser policy)
+  initAudio();
+  const progress = getProgress();
+  setMuted(progress.soundOn === false);
+
   updateStreak();
   renderHUD(TOTAL_TOPICS);
   renderMap();
@@ -118,7 +124,10 @@ function init() {
   bindGlobalEvents();
   handleRoute();
 
-  window.addEventListener('hashchange', handleRoute);
+  window.addEventListener('hashchange', () => {
+    playNav();
+    handleRoute();
+  });
 }
 
 // ==================== MISSION MAP ====================
@@ -307,11 +316,17 @@ async function loadTopic(topic) {
     // Bind "complete without quiz" button
     const completeBtn = document.getElementById('complete-topic-btn');
     if (completeBtn) {
+      if (isCompleted(topic.id)) {
+        completeBtn.textContent = 'Completed ✓';
+        completeBtn.disabled = true;
+        completeBtn.style.opacity = '0.5';
+      }
       completeBtn.addEventListener('click', () => {
         completeTopic(topic.id, undefined, TOTAL_TOPICS);
         renderMap();
         renderHUD(TOTAL_TOPICS);
-        completeBtn.textContent = 'Completed!';
+        playComplete();
+        completeBtn.textContent = 'Completed ✓';
         completeBtn.disabled = true;
         completeBtn.style.opacity = '0.5';
       });
@@ -370,9 +385,11 @@ function bindGlobalEvents() {
 
   soundBtn?.addEventListener('click', () => {
     const p = getProgress();
-    p.soundOn = !p.soundOn;
+    p.soundOn = p.soundOn === false ? true : false;
     saveProgress(p);
+    setMuted(!p.soundOn);
     soundBtn.textContent = p.soundOn ? '🔊' : '🔇';
+    if (p.soundOn) playClick();
   });
 
   // Map collapse
