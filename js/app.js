@@ -6,6 +6,7 @@ import { getProgress, saveProgress, renderHUD, updateStreak, completeTopic, isCo
 import { initTerminal, toggleTerminal } from './engine/terminal.js';
 import { startQuiz } from './engine/quiz.js';
 import { initAudio, setMuted, playClick, playNav, playComplete } from './engine/sounds.js';
+import { startPortScanner, startHackTheBox, startCommandBuilder, startFlashcards, renderGamesSection } from './engine/games.js';
 
 // ==================== COURSE STRUCTURE ====================
 const COURSE = [
@@ -182,6 +183,13 @@ function handleRoute() {
     return;
   }
 
+  // Handle game routes
+  if (hash.startsWith('game-')) {
+    loadGame(hash);
+    updateNavButtons(null);
+    return;
+  }
+
   const topicIndex = ALL_TOPICS.findIndex(t => t.id === hash);
   if (topicIndex === -1) {
     renderWelcome();
@@ -262,6 +270,8 @@ function renderWelcome() {
 
       <button class="btn-primary" onclick="window.location.hash='#/${startTarget}'">${startLabel}</button>
 
+      ${renderGamesSection()}
+
       <div style="margin-top: 48px; text-align: left; max-width: 600px; margin-left: auto; margin-right: auto;">
         <h3 style="color: var(--accent-cyan); margin-bottom: 16px;">Course Sections</h3>
         ${COURSE.map(section => {
@@ -279,6 +289,22 @@ function renderWelcome() {
   `;
 
   viewport.scrollTop = 0;
+}
+
+// ==================== LOAD GAME ====================
+function loadGame(gameId) {
+  const viewport = document.getElementById('viewport');
+  viewport.innerHTML = `<div class="lesson" id="game-container"></div>`;
+  viewport.scrollTop = 0;
+  const container = document.getElementById('game-container');
+
+  switch (gameId) {
+    case 'game-ports': startPortScanner(container); break;
+    case 'game-htb': startHackTheBox(container); break;
+    case 'game-cmdbuild': startCommandBuilder(container); break;
+    case 'game-flash': startFlashcards(container); break;
+    default: renderWelcome();
+  }
 }
 
 // ==================== LOAD TOPIC ====================

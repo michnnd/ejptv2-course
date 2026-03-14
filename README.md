@@ -4,7 +4,7 @@
 
 **A complete, interactive cybersecurity course built from scratch**
 
-[![Live Demo](https://img.shields.io/badge/🌐_Live_Demo-00ff88?style=for-the-badge)](https://7mx238.github.io/ejptv2-course/)
+[![Live Demo](https://img.shields.io/badge/🌐_Live_Demo-00ff88?style=for-the-badge)](https://michnnd.github.io/ejptv2-course/)
 
 <img src="https://img.shields.io/badge/Lessons-17-00ff88?style=flat-square" />
 <img src="https://img.shields.io/badge/Quiz_Questions-130+-00d4ff?style=flat-square" />
@@ -40,7 +40,7 @@
 ## 🚀 Run Locally
 
 ```bash
-git clone https://github.com/7mx238/ejptv2-course.git
+git clone https://github.com/michnnd/ejptv2-course.git
 cd ejptv2-course
 python3 -m http.server 8080
 # Open http://localhost:8080
@@ -58,6 +58,6 @@ python3 -m http.server 8080
 
 <div align="center">
 
-**Built by [MXR](https://github.com/7mx238)**
+**Built by [MXR](https://github.com/michnnd)**
 
 </div>
